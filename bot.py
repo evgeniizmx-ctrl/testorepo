@@ -378,6 +378,21 @@ def rule_parse(text: str, now_local: datetime):
                     "variants":[f"{hh:02d}:00", f"{(hh%12)+12:02d}:00"], "base_date": day.isoformat()}
         when_local = datetime(day.year, day.month, day.day, hh, mm, tzinfo=now_local.tzinfo)
         return {"intent": "create_reminder", "title": title, "fixed_datetime": when_local.replace(microsecond=0).isoformat()}
+        # есть слово-дата, но ВРЕМЕНИ нет -> спросим время и положим base_date
+    if md and not mt:
+        base = {"сегодня": 0, "завтра": 1, "послезавтра": 2}[md.group(1)]
+        day = (now_local + timedelta(days=base)).date()
+        title = _extract_title(text)
+        return {
+            "intent": "ask_clarification",
+            "title": title,
+            "question": "Во сколько?",
+            "expects": "time",
+            "base_date": day.isoformat(),
+            # variants можно не давать; при желании можно подсунуть две кнопки
+            # "variants": [f"{now_local.hour:02d}:00", f"{(now_local.hour % 12) + 12:02d}:00"]
+        }
+
     return None
 
 # ---------- DB helpers ----------
