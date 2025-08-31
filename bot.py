@@ -1137,7 +1137,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
     r = None
-   if OPENAI_API_KEY:
+if OPENAI_API_KEY:
     try:
         r = await call_llm(incoming_text, user_tz)
         log.debug("llm_parse -> %r", r)
