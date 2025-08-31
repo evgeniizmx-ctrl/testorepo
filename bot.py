@@ -1139,16 +1139,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     r = None
     if OPENAI_API_KEY:
         try:
-            r = await call_llm(incoming_text, user_tz)
-            log.debug("llm_parse -> %r", r)
-            # --- постфикс на случай, когда LLM ошибочно просит "дату" при явном сегодня/завтра ---
-try:
-    r:
-        asks_date = (str(r.get("expects") or "").lower() in ("date", "day")) \
-                    or ("на какую дату" in (r.get("question") or "").lower())
-        s_low = incoming_text.lower()
-        md = re.search(r"\b(сегодня|завтра|послезавтра)\b", s_low)
-        mt = re.search(r"\bв\s+\d{1,2}(:\d{2})?\b", s_low)
+        r = await call_llm(incoming_text, user_tz)
+        log.debug("llm_parse -> %r", r)
+
+        # === постфикc на случай, когда LLM ошибочно просит "дату" при явном сегодня/завтра ===
+        if r:
+            asks_date = (str(r.get("expects") or "").lower() in ("date", "day")
+                        or "на какую дату" in (r.get("question") or "").lower())
+            s_low = incoming_text.lower()
+            md = re.search(r"\b(сегодня|завтра|послезавтра)\b", s_low)
+            mt = re.search(r"\b\d{1,2}(:\d{2})?\b", s_low)
 
         if asks_date and md and not mt:
             base = {"сегодня": 0, "завтра": 1, "послезавтра": 2}[md.group(1)]
