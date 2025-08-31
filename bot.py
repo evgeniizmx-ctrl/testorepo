@@ -1138,32 +1138,32 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     r = None
     if OPENAI_API_KEY:
-        try:
+    try:
         r = await call_llm(incoming_text, user_tz)
         log.debug("llm_parse -> %r", r)
 
-        # === постфикc на случай, когда LLM ошибочно просит "дату" при явном сегодня/завтра ===
+        # === постфикс на случай, когда LLM ошибочно просит "дату" при явном сегодня/завтра ===
         if r:
-            asks_date = (str(r.get("expects") or "").lower() in ("date", "day")
-                        or "на какую дату" in (r.get("question") or "").lower())
+            asks_date = (str(r.get("expects") or "").lower() in ("date", "day")) \
+                        or ("на какую дату" in (r.get("question") or "").lower())
             s_low = incoming_text.lower()
             md = re.search(r"\b(сегодня|завтра|послезавтра)\b", s_low)
             mt = re.search(r"\b\d{1,2}(:\d{2})?\b", s_low)
 
-        if asks_date and md and not mt:
-            base = {"сегодня": 0, "завтра": 1, "послезавтра": 2}[md.group(1)]
-            base_day = (now_local + timedelta(days=base)).date().isoformat()
-            r = {
-                "intent": "ask_clarification",
-                "title": _extract_title(incoming_text),
-                "question": "Во сколько?",
-                "expects": "time",
-                "base_date": base_day,
-                # вариантов времени не навязываем, чтобы не путать
-            }
-            log.debug("llm_postfix: override to ask time with base_date=%s", base_day)
-except Exception:
-    log.exception("llm_postfix failed")
+            if asks_date and md and not mt:
+                base = {"сегодня": 0, "завтра": 1, "послезавтра": 2}[md.group(1)]
+                base_day = (now_local + timedelta(days=base)).date().isoformat()
+                r = {
+                    "intent": "ask_clarification",
+                    "title": _extract_title(incoming_text),
+                    "question": "Во сколько?",
+                    "expects": "time",
+                    "base_date": base_day,
+                }
+                log.debug("llm_postfix: override to ask time with base_date=%s", base_day)
+
+    except Exception:
+        log.exception("llm_postfix failed")
 
         except Exception:
             log.exception("LLM parse failed")
