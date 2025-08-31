@@ -791,6 +791,13 @@ async def cb_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
             }
             await send_prebuild_poll(update, context)
             return
+            
+        set_clarify_state(context, None)  # сбрасываем уточнения
+        rem_id = db_add_reminder_oneoff(user_id, title, None, when_iso_utc)
+        schedule_oneoff(rem_id, user_id, when_iso_utc, title, kind="oneoff")
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("Отменить", callback_data=f"del:{rem_id}")]])
+        await safe_reply(update, f"⏰ Окей, напомню «{title}» {when_local.strftime('%d.%m в %H:%M')}", reply_markup=kb)
+        return        
 
     context.user_data["__auto_answer"] = choice
     await handle_text(update, context)
