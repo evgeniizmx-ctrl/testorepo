@@ -1137,12 +1137,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
     r = None
-    if OPENAI_API_KEY:
+   if OPENAI_API_KEY:
     try:
         r = await call_llm(incoming_text, user_tz)
         log.debug("llm_parse -> %r", r)
 
-        # === постфикс на случай, когда LLM ошибочно просит "дату" при явном сегодня/завтра ===
+        # === постфикс на случай, когда LLM ошибочно просит "дату" ===
         if r:
             asks_date = (str(r.get("expects") or "").lower() in ("date", "day")) \
                         or ("на какую дату" in (r.get("question") or "").lower())
