@@ -1165,9 +1165,6 @@ if OPENAI_API_KEY:
     except Exception:
         log.exception("llm_postfix failed")
 
-        except Exception:
-            log.exception("LLM parse failed")
-
     # Если LLM ничего не вернул — пробуем rule_fallback
     if not r:
         r = rule_parse(incoming_text, now_local)
