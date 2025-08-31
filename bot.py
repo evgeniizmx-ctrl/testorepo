@@ -1136,7 +1136,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 set_clarify_state(context, None)
                 return
 
-    r = None
+
+r = None
 if OPENAI_API_KEY:
     try:
         r = await call_llm(incoming_text, user_tz)
