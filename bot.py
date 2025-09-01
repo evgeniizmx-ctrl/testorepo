@@ -1678,7 +1678,6 @@ def main():
     app.add_error_handler(on_error)
 
     app.add_handler(CommandHandler("start", cmd_start))
-    async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     app.add_handler(CommandHandler("settings", lambda u,c: u.message.reply_text(
         "Раздел «Настройки» в разработке.", reply_markup=MAIN_MENU_KB)))
     app.add_handler(CallbackQueryHandler(cb_tz, pattern=r"^tz:"))
