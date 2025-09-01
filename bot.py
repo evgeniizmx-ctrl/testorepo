@@ -853,7 +853,7 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 log.exception("format_reminder_line failed on row=%r", r)
                 title = r.get("title") if isinstance(r, dict) else (r["title"] if r else "Напоминание")
                 line = f"«{title}» (некорректные данные)"
-            kb = InlineKeyboardMarkup([[InlineKeyboardButton(f"Отменить {PAD}", callback_data=f"del:{r['id']}")]])
+            kb = InlineKeyboardMarkup([[InlineKeyboardButton(f"Удалить {PAD}", callback_data=f"del:{r['id']}")]])
             await safe_reply(update, line, reply_markup=kb)
             await asyncio.sleep(0.05)
     except Exception:
