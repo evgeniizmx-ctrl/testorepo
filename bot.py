@@ -181,17 +181,159 @@ def tzinfo_from_user(tz_str: str) -> timezone | ZoneInfo:
 def now_in_user_tz(tz_str: str) -> datetime:
     return datetime.now(tzinfo_from_user(tz_str))
     # ----- helpers.py или в bot.py -----
-WEEKDAY_MAP = {...}
+# ----- helpers (локальные утилиты) -----
 
-def _parse_hhmm(...):
-    ...
+WEEKDAY_MAP: dict[str, int] = {
+    "mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6
+}
 
-def _ceil_div(...):
-    ...
+def _parse_hhmm(s: str) -> tuple[int, int] | None:
+    """
+    Разбирает время форматов:
+      - '13:40', '13.40', '13 40'
+      - '1340', '0745', '700' (-> 07:00)
+    Возвращает (h, m) или None, если не распознано/невалидно.
+    """
+    if not s:
+        return None
+    s = s.strip()
 
-def compute_next_fire_from_recurrence(...):
-    ...
+    # 1)  HH:MM  |  HH.MM  |  HH MM
+    m = re.fullmatch(r"\s*(\d{1,2})[:.\s](\d{2})\s*$", s)
+    if m:
+        h, mnt = int(m.group(1)), int(m.group(2))
+        if 0 <= h <= 23 and 0 <= mnt <= 59:
+            return h, mnt
+        return None
 
+    # 2)  Слитно:  HMM  /  HHMM
+    m = re.fullmatch(r"\s*(\d{3,4})\s*$", s)
+    if m:
+        raw = m.group(1)
+        if len(raw) == 3:
+            h = int(raw[0])
+            mnt = int(raw[1:])
+        else:
+            h = int(raw[:2])
+            mnt = int(raw[2:])
+        if 0 <= h <= 23 and 0 <= mnt <= 59:
+            return h, mnt
+        return None
+
+    # 3) Часы без минут (иногда прилетает сюда) — не трогаем,
+    #    двусмысленностью занимается LLM (ask_clarification).
+    return None
+
+
+def _ceil_div(a: int, b: int) -> int:
+    """Округление вверх для целых."""
+    if b == 0:
+        raise ZeroDivisionError("b must not be 0")
+    return -(-a // b)
+
+
+def compute_next_fire_from_recurrence(
+    rec: dict,
+    now_local: datetime,
+    tz_str: str
+) -> datetime | None:
+    """
+    Прикидывает ближайший next_fire по простым случаям:
+      - daily: time
+      - weekly: weekday + time
+      - monthly: day + time
+      - yearly: month + day + time
+    Возвращает aware datetime в TZ пользователя либо None, если данных не хватает.
+    Это вспомогательная функция (для UI/предпросмотра); основной расчёт делает APScheduler.
+    """
+    if not rec or not isinstance(rec, dict):
+        return None
+
+    t = (rec.get("type") or "").lower()
+    time_str = rec.get("time")
+    tz = tzinfo_from_user(tz_str)
+
+    # Время обязательно для предрасчёта
+    if not time_str:
+        return None
+
+    hhmm = _parse_hhmm(time_str) if isinstance(time_str, str) else None
+    if not hhmm:
+        # допускаем уже нормализованный "HH:MM"
+        try:
+            hh, mm = map(int, str(time_str).split(":"))
+        except Exception:
+            return None
+    else:
+        hh, mm = hhmm
+
+    base = now_local.astimezone(tz)
+
+    if t == "daily":
+        candidate = base.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        if candidate <= base:
+            candidate = candidate + timedelta(days=1)
+        return candidate
+
+    if t == "weekly":
+        wd = rec.get("weekday")
+        if not wd or wd not in WEEKDAY_MAP:
+            return None
+        target_wd = WEEKDAY_MAP[wd]
+        today_wd = base.weekday()
+        delta_days = (target_wd - today_wd) % 7
+        candidate = (base + timedelta(days=delta_days)).replace(
+            hour=hh, minute=mm, second=0, microsecond=0
+        )
+        if candidate <= base:
+            candidate = candidate + timedelta(days=7)
+        return candidate
+
+    if t == "monthly":
+        day = rec.get("day")
+        if not isinstance(day, int) or day < 1 or day > 31:
+            return None
+        # пробуем текущий месяц
+        year, month = base.year, base.month
+
+        def _safe_dt(y: int, m: int, d: int) -> datetime | None:
+            try:
+                return datetime(y, m, d, hh, mm, tzinfo=tz)
+            except ValueError:
+                return None  # напр., 31-е в коротком месяце
+
+        cand = _safe_dt(year, month, day)
+        if cand and cand > base:
+            return cand
+        # следующий месяц
+        if month == 12:
+            year, month = year + 1, 1
+        else:
+            month += 1
+        cand = _safe_dt(year, month, day)
+        return cand
+
+    if t == "yearly":
+        month = rec.get("month")
+        day = rec.get("day")
+        if not isinstance(month, int) or not isinstance(day, int):
+            return None
+        if not (1 <= month <= 12):
+            return None
+
+        def _safe_dt(y: int) -> datetime | None:
+            try:
+                return datetime(y, month, day, hh, mm, tzinfo=tz)
+            except ValueError:
+                return None
+
+        cand = _safe_dt(base.year)
+        if cand and cand > base:
+            return cand
+        return _safe_dt(base.year + 1)
+
+    # interval и прочее тут не считаем
+    return None
 
 def iso_utc(dt: datetime) -> str:
     if dt.tzinfo is None: raise ValueError("aware dt required")
