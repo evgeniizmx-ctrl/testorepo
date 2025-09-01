@@ -19,9 +19,9 @@ import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+import json
 import asyncio
 import tempfile
-
 from dateutil import parser as dparser
 
 from telegram import (
@@ -180,6 +180,18 @@ def tzinfo_from_user(tz_str: str) -> timezone | ZoneInfo:
 
 def now_in_user_tz(tz_str: str) -> datetime:
     return datetime.now(tzinfo_from_user(tz_str))
+    # ----- helpers.py или в bot.py -----
+WEEKDAY_MAP = {...}
+
+def _parse_hhmm(...):
+    ...
+
+def _ceil_div(...):
+    ...
+
+def compute_next_fire_from_recurrence(...):
+    ...
+
 
 def iso_utc(dt: datetime) -> str:
     if dt.tzinfo is None: raise ValueError("aware dt required")
@@ -1524,7 +1536,8 @@ def main():
     app.add_error_handler(on_error)
 
     app.add_handler(CommandHandler("start", cmd_start))
-    app.add_handler(CommandHandler("list", cmd_list))
+    async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ...
     app.add_handler(CommandHandler("settings", lambda u,c: u.message.reply_text(
         "Раздел «Настройки» в разработке.", reply_markup=MAIN_MENU_KB)))
     app.add_handler(CallbackQueryHandler(cb_tz, pattern=r"^tz:"))
